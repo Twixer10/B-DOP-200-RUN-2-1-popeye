@@ -1,0 +1,76 @@
+version: "3"
+services:
+  poll:
+    build: ./poll/
+    restart: always
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=redis
+    ports:
+      - "5000:80"
+    networks:
+      - poll-tier
+
+  result:
+    build: ./result/
+    restart: always
+    depends_on:
+      - db
+    environment:
+      - host=db
+      - user=postgres
+      - password=popeye
+      - db=postgres
+    ports:
+      - "5001:80"
+    networks:
+      - result-tier
+
+  worker:
+    build: ./worker
+    restart: always
+    depends_on:
+      - db
+      - redis
+    environment:
+      - REDIS_HOST=redis
+      - host=db
+      - user=postgres
+      - password=popeye
+      - db=postgres
+    networks:
+      - back-tier
+  redis:
+    image: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - poll-tier
+      - back-tier
+
+  db:
+    image: "postgres:9.4"
+    restart: always
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/postgres
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=popeye
+      - POSTGRES_DB=postgres
+    networks:
+      - result-tier
+      - back-tier
+
+
+volumes:
+  db-data: {}
+
+networks:
+  poll-tier: {}
+  result-tier: {}
+  back-tier: {}
